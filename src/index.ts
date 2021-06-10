@@ -168,6 +168,7 @@ const packagePlugin = (args: any) => {
 const program = new Command();
 
 program
+  .name("midi-mixer")
   .version("1.0.0")
   .description(
     "A CLI tool to help with the packaging and distribution of MIDI Mixer plugins."
