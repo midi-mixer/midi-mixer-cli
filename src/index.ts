@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { readFile, access, rename, unlink } from "fs";
-import Listr from "listr";
-import { z } from "zod";
-import { dirname, resolve as pathResolve } from "path";
 import execa from "execa";
+import { access, readFile, rename, unlink } from "fs";
+import Listr from "listr";
+import { dirname, resolve as pathResolve } from "path";
+import { z } from "zod";
 
 const manifestSchema = z.object({
   id: z.string().min(1).max(100),
