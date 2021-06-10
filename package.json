@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "A CLI tool to help with the packaging and distribution of MIDI Mixer plugins.",
   "main": "lib/index.js",
+  "files": [
+    "lib"
+  ],
   "bin": {
     "midi-mixer": "./lib/index.js"
   },
