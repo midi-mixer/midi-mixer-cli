@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "declaration": true,
+    "declarationMap": true,
+    "esModuleInterop": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "pretty": true,
+    "strict": true, // includes noImplicitAny, noImplicitThis, alwaysStrict and all strict options
+    "outDir": "lib",
+    "target": "ES5",
+    "module": "CommonJS",
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.spec.ts"]
+}
