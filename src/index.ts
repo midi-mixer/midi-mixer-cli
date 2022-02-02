@@ -2,20 +2,29 @@
 
 import { Command } from "commander";
 import execa from "execa";
-import { access, readFile, rename, unlink } from "fs";
+import { access, readFile, rename, unlink, writeFile } from "fs";
 import Listr from "listr";
 import { dirname, resolve as pathResolve } from "path";
 import { z } from "zod";
 
+const versionSchema = z
+  .string()
+  .regex(
+    /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/,
+    "Version must be a valid semver version number, e.g. `1.0.0`."
+  );
+
+const packageSchema = z.object({
+  name: z.string().min(1).max(100),
+  version: versionSchema,
+});
+
 const manifestSchema = z.object({
+  $schema: z.string().optional(),
   id: z.string().min(1).max(100),
   name: z.string().min(1).max(100),
-  version: z
-    .string()
-    .regex(
-      /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/,
-      "Version must be a valid semver version number, e.g. `1.0.0`."
-    ),
+  type: z.string().optional(),
+  version: versionSchema,
   author: z.string().min(1).max(100),
   main: z.string().min(1).max(100),
   dev: z.string().min(1).max(100).optional(),
@@ -35,6 +44,8 @@ const manifestSchema = z.object({
 });
 
 interface TaskContext {
+  maybePackagePath: string;
+  maybePackageData?: string | null;
   manifestPath: string;
   manifestData?: string;
   manifest?: z.infer<typeof manifestSchema>;
@@ -42,6 +53,7 @@ interface TaskContext {
 
 const packagePlugin = (args: any) => {
   let manifestPath = "./plugin.json";
+  const maybePackagePath = "./package.json";
 
   if (typeof args?.manifest === "string" && args.manifest) {
     manifestPath = args.manifest;
@@ -69,6 +81,55 @@ const packagePlugin = (args: any) => {
 
         const manifestJson = JSON.parse(ctx.manifestData);
         ctx.manifest = manifestSchema.parse(manifestJson);
+      },
+    },
+    {
+      title: "Finding package.json",
+      task: async (ctx: TaskContext) => {
+        ctx.maybePackageData = await new Promise<string | null>(
+          (resolve) =>
+            void readFile(
+              ctx.maybePackagePath,
+              { encoding: "utf-8" },
+              (err, data) => (err ? resolve(null) : resolve(data))
+            )
+        );
+      },
+    },
+    {
+      title: "Try sync plugin manifest with package.json",
+      task: async (ctx: TaskContext) => {
+        if (!ctx.manifest)
+          throw new Error("Could not find manifest sync with package.json");
+
+        if (typeof ctx.maybePackageData !== "string") {
+          return;
+        }
+
+        const packageData = packageSchema.parse(
+          JSON.parse(ctx.maybePackageData)
+        );
+
+        ctx.manifest.id = packageData.name;
+        ctx.manifest.version = packageData.version;
+
+        /**
+         * Re-validate the manifest shape to confirm that it is valid.
+         */
+        manifestSchema.parse(ctx.manifest);
+
+        /**
+         * Write the new manifest to the manifest file.
+         */
+        await new Promise<void>(
+          (resolve, reject) =>
+            void writeFile(
+              ctx.manifestPath,
+              JSON.stringify(ctx.manifest, null, 2),
+              { encoding: "utf-8" },
+              (err) => (err ? reject(err) : resolve())
+            )
+        );
       },
     },
     {
@@ -161,6 +222,7 @@ const packagePlugin = (args: any) => {
   tasks
     .run({
       manifestPath,
+      maybePackagePath,
     })
     .catch(console.error);
 };
