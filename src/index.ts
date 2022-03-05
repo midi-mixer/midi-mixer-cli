@@ -19,6 +19,11 @@ const packageSchema = z.object({
   version: versionSchema,
 });
 
+const commonManifestSettingsSchema = {
+  label: z.string().min(1).max(100),
+  required: z.boolean().optional(),
+};
+
 const manifestSchema = z.object({
   $schema: z.string().optional(),
   id: z.string().min(1).max(100),
@@ -33,12 +38,25 @@ const manifestSchema = z.object({
   remoteIcon: z.string().min(1).max(100).optional(),
   settings: z
     .record(
-      z.object({
-        label: z.string().min(1).max(100),
-        type: z.enum(["text", "password", "status", "button"]),
-        required: z.boolean().optional(),
-        fallback: z.string().min(1).max(1024).optional(),
-      })
+      z.union([
+        z.object({
+          ...commonManifestSettingsSchema,
+          type: z.enum(["text", "password", "status", "button"]),
+          fallback: z.string().min(1).max(1024).optional(),
+        }),
+        z.object({
+          ...commonManifestSettingsSchema,
+          type: z.enum(["toggle"]),
+          fallback: z.boolean().optional(),
+        }),
+        z.object({
+          ...commonManifestSettingsSchema,
+          type: z.enum(["integer", "slider"]),
+          fallback: z.number().optional(),
+          min: z.number(),
+          max: z.number(),
+        }),
+      ])
     )
     .optional(),
 });
